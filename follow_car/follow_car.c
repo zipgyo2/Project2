@@ -68,14 +68,14 @@ TASK(Sonar) //15ms마다 입력 받음
     left_sonar_array[entry_count] = ecrobot_get_sonar_sensor(S3);
     right_sonar_array[entry_count] = ecrobot_get_sonar_sensor(S4);
 
-    /* Max calibration : 초음파 센서의 값이 100이상일 시 100으로 고정 */
-    if (left_sonar_array[entry_count] >= 100)
+    /* Max calibration : 초음파 센서의 값이 80이상일 시 80으로 고정 */
+    if (left_sonar_array[entry_count] >= 80)
     {
-        left_sonar_array[entry_count] = 100;
+        left_sonar_array[entry_count] = 80;
     }
-    if (right_sonar_array[entry_count] >= 100)
+    if (right_sonar_array[entry_count] >= 80)
     {
-        right_sonar_array[entry_count] = 100;
+        right_sonar_array[entry_count] = 80;
     }
 
     /* 초음파 센서에서 받은 값을 정렬을 위한 배열에 복사 */
