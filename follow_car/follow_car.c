@@ -48,7 +48,7 @@ void user_1ms_isr_type2(void)
         ShutdownOS(ercd);
 }
 
-/* Global Value */
+/* Global Variable */
 int left_sonar_sensor;
 int right_sonar_sensor;
 
@@ -64,10 +64,11 @@ TASK(Sonar) //15ms마다 입력 받음
     int left_sort[5], right_sort[5];
     int temp;
 
+    /*sliding window 형식으로 sonar_array에 새로운값 받음*/
     left_sonar_array[entry_count] = ecrobot_get_sonar_sensor(S3);
     right_sonar_array[entry_count] = ecrobot_get_sonar_sensor(S4);
 
-    /* 초음파 센서의 값이 100이상일 시 100으로 고정 */
+    /* Max calibration : 초음파 센서의 값이 100이상일 시 100으로 고정 */
     if (left_sonar_array[entry_count] >= 100)
     {
         left_sonar_array[entry_count] = 100;
@@ -84,7 +85,7 @@ TASK(Sonar) //15ms마다 입력 받음
         right_sort[i] = right_sonar_array[i];
     }
 
-    /* 초음파 센서 배열을 정렬 */
+    /* Median calibration 초음파 센서 배열을 정렬 */
     for (i = 0; i < 5; i++)
     {
         for (j = 0; j < 5 - i; j++)
@@ -104,18 +105,19 @@ TASK(Sonar) //15ms마다 입력 받음
         }
     }
 
-    /* 정렬된 값에서 중간 값인 배열의 2번째 값을 현재 측정 값으로 설정. 
+    /* Result of calibrations : 정렬된 값에서 중간 값인 배열의 중앙 값을 초음파 측정 값으로 설정. 
         Task 실행 시 마다 센서 값 결정 */
     left_sonar_sensor = left_sort[2];
     right_sonar_sensor = right_sort[2];
 
-    /* Steering Event Set. 좌/우 초음파 센서의 값의 차이가 있을 시 */
+    /* Steering Event Set. 좌/우 초음파 센서의 값의 차이가 있을 시 
+        즉 angle 이 존재할 경우 */
     if (left_sonar_sensor - right_sonar_sensor != 0)
     {
         SetEvent(Steering, SteeringEvent);
     }
 
-    /* Movement Event Set. 이전에 측정한 값과 현재 측정된 값이 차이가 있을 시 */
+    /* Movement Event Set. 이전에 측정한 값과 현재 측정된 값이 변화 있을 시 */
     int avg = (left_sonar_array[entry_count] + right_sonar_array[entry_count]) / 2;
     int prev_avg = 0;
     if (entry_count == 0)
@@ -128,6 +130,7 @@ TASK(Sonar) //15ms마다 입력 받음
     }
     if (avg - prev_avg != 0)
     {
+        // distance에 변화가 있을경우 event set
         SetEvent(Movement, MovementEvent);
     }
 
@@ -146,6 +149,7 @@ TASK(Steering)
     while (WaitEvent(SteeringEvent) == E_OK)
     {
         ClearEvent(SteeringEvent);
+        /*Static Variable*/
         static int steering_count = 0;
         static double previous_steer = 0.0;
         const double sonar_width = 15.5;
@@ -155,7 +159,8 @@ TASK(Steering)
         double angle = atan2(d, sonar_width);
         angle = angle * RAD;
 
-        //측정된 각도가 노이즈 값이 들어오면 이전에 측정된 값으로 사용
+        /*측정된 각도가 노이즈 값이 들어오면 이전에 측정된 값으로 사용
+            튀는값 보정*/
         if (angle >= 80 || angle <= -80)
         {
             angle = previous_steer;
@@ -166,14 +171,17 @@ TASK(Steering)
         {
             angle = 45.0;
         }
-        else if (d < 0 && (angle < -45.0 || angle > 45.0))
+        else if (d < 0 && (angle < -45.0 || angle > 45.0)) //angle 값이 양수로만 튀기때문에 d와같이 사용하여 보정
         {
             angle = -45.0;
         }
-
-        //angle의 값이 25보다 크다면 차량 회전 최대 값을 늘려주고, 모터의 속도를 조금 더 빠르게 설정
+        /*
+        angle의 각도 범위 -45 ~ 45
+        steer motor count범위 -90~90
+        따라서 angle에 1.8혹은 2.0을 곱하여 보정
+        */ 
+        //angle의 값이 25보다 크면 차량 회전 최대 값을 보정해주고, 모터의 속도를 조금 더 빠르게 설정
         steering_count = nxt_motor_get_count(B);
-        previous_steer = angle;
         if (angle > 25)
         {
             if (steering_count < angle * 2.0)
@@ -182,6 +190,7 @@ TASK(Steering)
             }
             else if (steering_count > angle * 2.0)
             {
+                //steer가 왼쪽으로 잘 안돌아가기 때문에 왼쪽에 speed를 크게준다
                 nxt_motor_set_speed(B, -32, 1);
             }
             //앞 바퀴의 모터가 최대각까지 진행하였다면 모터를 멈춘다.
@@ -190,7 +199,7 @@ TASK(Steering)
                 nxt_motor_set_speed(B, 0, 1);
             }
         }
-        //아니라면 차량 회전 최대 값을 angle의 1.8배 만큼 해주고 모터의 속도는 default 값으로 설정
+        //angle 값이 25보다 작으면 차량 회전 최대 값을 angle의 1.8배 만큼 보정 해주고 모터의 속도는 default 값으로 설정
         else
         {
             if (steering_count < angle * 1.8)
@@ -199,6 +208,7 @@ TASK(Steering)
             }
             else if (steering_count > angle * 1.8)
             {
+                //steer가 왼쪽으로 잘 안돌아가기 때문에 왼쪽에 speed를 크게준다
                 nxt_motor_set_speed(B, -30, 1);
             }
             //앞 바퀴의 모터가 최대각까지 진행하였다면 모터를 멈춘다.
@@ -207,6 +217,8 @@ TASK(Steering)
                 nxt_motor_set_speed(B, 0, 1);
             }
         }
+
+        previous_steer = angle;
     }
 }
 TASK(Movement)
