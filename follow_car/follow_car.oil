@@ -72,19 +72,6 @@ CPU ATMEL_AT91SAM7S256
     EVENT = MovementEvent;
   };
 
-  TASK Crash
-  {
-    AUTOSTART = TRUE
-    {
-      APPMODE = appmode1;
-    };
-    PRIORITY = 2;
-    ACTIVATION = 1;
-    SCHEDULE = FULL;
-    STACKSIZE = 512; /* Stack size */
-    EVENT = CrashEvent;
-  };
-
   /* Definition of System Timer Count */
   COUNTER SysTimerCnt
   {
