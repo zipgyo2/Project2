@@ -17,7 +17,6 @@ DeclareTask(IdleTask);
 int speed = 0;
 int str_speed = 0;
 int brake_count = 0;
-int cnt = 0;
 
 
 /* LEJOS OSEK hooks */
