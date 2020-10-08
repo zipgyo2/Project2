@@ -10,7 +10,6 @@ DeclareTask(MAIN);
 DeclareTask(CAR_SPEED);
 DeclareTask(CAR_DIR);
 DeclareTask(CAR_BRAKE);
-DeclareTask(CAR_SONAR);
 
 DeclareTask(IdleTask);
 
@@ -18,21 +17,18 @@ DeclareTask(IdleTask);
 int speed = 0;
 int str_speed = 0;
 int brake_count = 0;
-int sonar_array[5];
-int cnt = 0, sonar_flag = 0;
+int cnt = 0;
 
 
 /* LEJOS OSEK hooks */
 void ecrobot_device_initialize()
 {
 	ecrobot_init_bt_connection();
-	ecrobot_init_sonar_sensor(NXT_PORT_S4);
 }
 
 void ecrobot_device_terminate()
 {
 	ecrobot_term_bt_connection();
-	ecrobot_term_sonar_sensor(NXT_PORT_S4);
 }
 
 /* LEJOS OSEK hook to be invoked from an ISR in category 2 */
@@ -97,43 +93,6 @@ TASK(CAR_BRAKE)
 	TerminateTask();
 }
 
-/* CAR_SONAR Task control Sonar mode */
-TASK(CAR_SONAR)
-{
-	if (sonar_flag == 1) {
-		int temp;
-		int sonar;
-		sonar = ecrobot_get_sonar_sensor(NXT_PORT_S4);
-		if (sonar<70) {
-			sonar_array[cnt++] = sonar;
-		}
-		if (cnt >= 5) {
-			for (int i = 0; i<5; i++) {
-				for (int j = i + 1; j<5; j++) {
-					if (sonar_array[i]>sonar_array[j]) {
-						temp = sonar_array[i];
-						sonar_array[i] = sonar_array[j];
-						sonar_array[j] = temp;
-					}
-				}
-			}
-			sonar = sonar_array[2];
-			cnt = 0;
-			if (sonar >= 50 && sonar<70)
-				ecrobot_sound_tone(208, 400, 40);
-			else if (sonar >= 30 && sonar<50)
-				ecrobot_sound_tone(262, 400, 60);
-			else if (sonar >= 10 && sonar<30)
-				ecrobot_sound_tone(392, 400, 80);
-			else if (sonar<10) {
-				ecrobot_sound_tone(523, 400, 100);
-				speed = 0;
-				ActivateTask(CAR_BRAKE);
-			}
-		}
-	}
-	TerminateTask();
-}
 /* EventDispatcher executed every 5ms */
 TASK(MAIN)
 {
@@ -146,14 +105,6 @@ TASK(MAIN)
 
 	/* read packet data from the master device */
 	ecrobot_read_bt_packet(bt_receive_buf, 32);
-	if (bt_receive_buf[7] == 2) {
-		//Sonar mode on
-		sonar_flag = 1;
-	}
-	else if (bt_receive_buf[7] != 2) {
-		//Sonar mode off
-		sonar_flag = 0;
-	}
 	if (bt_receive_buf[7] == 1) {
 		if (bt_receive_buf[6] == 2) {
 			//Slow brake mode
@@ -177,7 +128,6 @@ TASK(MAIN)
 
 	}
 	else if (bt_receive_buf[7] != 2) {
-		sonar_flag = 0;
 		if (bt_receive_buf[5] == 1)
 		{
 			//Fast speed mode
@@ -245,18 +195,6 @@ TASK(MAIN)
 			ActivateTask(CAR_DIR);
 		}
 	}
-	TouchSensorStatus = ecrobot_get_touch_sensor(NXT_PORT_S4);
-	if (TouchSensorStatus == 1 && TouchSensorStatus_old == 0)
-	{
-		/* Send a Touch Sensor ON Event to the Handler */
-		SetEvent(EventHandler, TouchSensorOnEvent);
-	}
-	else if (TouchSensorStatus == 0 && TouchSensorStatus_old == 1)
-	{
-		/* Send a Touch Sensor OFF Event to the Handler */
-		SetEvent(EventHandler, TouchSensorOffEvent);
-	}
-	TouchSensorStatus_old = TouchSensorStatus;
 
 	TerminateTask();
 }
