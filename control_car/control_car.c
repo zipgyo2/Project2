@@ -13,7 +13,7 @@ DeclareTask(CAR_BRAKE);
 
 DeclareTask(IdleTask);
 
-/* Gloval Values */
+/* Gloval Variables */
 int speed = 0;
 int str_speed = 0;
 int brake_count = 0;
@@ -44,6 +44,7 @@ void user_1ms_isr_type2(void)
 /*CAR_SPEED Task control car-speed mode by motor */
 TASK(CAR_SPEED)
 {
+	//set motor to speed
 	nxt_motor_set_speed(NXT_PORT_B, speed, 1);
 	nxt_motor_set_speed(NXT_PORT_C, speed, 1);
 	TerminateTask();
@@ -52,6 +53,7 @@ TASK(CAR_SPEED)
 /*CAR_DIR Task control car diraction mode by motor*/
 TASK(CAR_DIR)
 {
+	//Initialize motor speed for immediate change of speed
 	nxt_motor_set_speed(NXT_PORT_A, 0, 1);
 	if (str_speed > 0)
 	{
@@ -95,18 +97,16 @@ TASK(CAR_BRAKE)
 /* EventDispatcher executed every 5ms */
 TASK(MAIN)
 {
-	//Static Value
+	//Static Variable
 	static U8 bt_receive_buf[32];
-	static U8 TouchSensorStatus_old = 0;
 
-	//Value
+	//Variable
 	int new_speed = 0;
 
 	/* read packet data from the master device */
 	ecrobot_read_bt_packet(bt_receive_buf, 32);
 	if (bt_receive_buf[7] == 1) {
-		if (bt_receive_buf[6] == 2) {
-			//Slow brake mode
+		if (bt_receive_buf[6] == 2) {//Slow brake mode
 			if (brake_count == 100 || brake_count == 0)
 			{
 				brake_count = 0;
@@ -118,73 +118,61 @@ TASK(MAIN)
 			}
 			brake_count++;
 		}
-		else if (bt_receive_buf[6] == 1)
+		else if (bt_receive_buf[6] == 1)//Immediate brake mode
 		{
-			//Immediate brake mode
 			speed = 0;
 			ActivateTask(CAR_BRAKE);
 		}
 
 	}
 	else if (bt_receive_buf[7] != 2) {
-		if (bt_receive_buf[5] == 1)
+		if (bt_receive_buf[5] == 1)//Fast speed mode
 		{
-			//Fast speed mode
-			if (bt_receive_buf[3] == 1)
+			if (bt_receive_buf[3] == 1)//Forward
 			{
-				//Forward
 				speed = -100;
 				ActivateTask(CAR_SPEED);
 			}
-			else if (bt_receive_buf[3] == 2)
+			else if (bt_receive_buf[3] == 2)//Backward
 			{
-				//Backward
 				speed = 100;
 				ActivateTask(CAR_SPEED);
 			}
 		}
-		else if (bt_receive_buf[5] == 2) 
+		else if (bt_receive_buf[5] == 2) //Slow speed mode
 		{
-			//Slow speed mode
-			if (bt_receive_buf[3] == 1)
+			if (bt_receive_buf[3] == 1)//Forward
 			{
-				//Forward
 				speed = -30;
 				ActivateTask(CAR_SPEED);
 			}
-			else if (bt_receive_buf[3] == 2)
+			else if (bt_receive_buf[3] == 2)//Backward
 			{
-				//Backward
 				speed = 30;
 				ActivateTask(CAR_SPEED);
 			}
 		}
-		else {
-			//Default speed mode
-			if (bt_receive_buf[3] == 1)
+		else {//Default speed mode
+			if (bt_receive_buf[3] == 1)//Forward
 			{
-				//Forward
 				speed = -50;
 				ActivateTask(CAR_SPEED);
 
 			}
-			else if (bt_receive_buf[3] == 2)
+			else if (bt_receive_buf[3] == 2)//Backward
 			{
-				//Backward
 				speed = 50;
 				ActivateTask(CAR_SPEED);
 			}
 		}
 		// car direction mode
-		if (bt_receive_buf[4] == 3)
+		if (bt_receive_buf[4] == 3)//Right
 		{
-			//Right
 			str_speed = -90;
 			ActivateTask(CAR_DIR);
 		}
-		else if (bt_receive_buf[4] == 4)
+		else if (bt_receive_buf[4] == 4)//Left
 		{
-			//Left
 			str_speed = 90;
 			ActivateTask(CAR_DIR);
 		}
